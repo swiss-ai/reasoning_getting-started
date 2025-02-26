@@ -2,20 +2,14 @@
 
 Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at [https://confluence.cscs.ch/spaces/KB/overview](https://confluence.cscs.ch/spaces/KB/overview) and Clariden [https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide](https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide)
 
-_TODO: TOC, VS Code Integration, Building a Container ontop of group's, creating group container_
-1. [Set Up Your Access to Clariden](#17-set-up-your-access-to-clariden---cscs-kb)
-2. [Persistent Storage](#27-persistent-storage---cscs-kb)
-3. [SLURM Basics](#37-slurm-basics---cscs-kb)
-4. [Containers and Env Files](#47-containers-and-env-files---cscs-kb)
-5. [Everyday SLURM](#57-everyday-slurm---cscs-kb)
-6. [TODO: VS Code Integration](#67-todo-vs-code-integration)
-7. [(Optional) Building a Container](#77-optional-building-a-container---cscs-kb)
+_TODO: VS Code Integration, Building a Container ontop of group's, creating group container_
 
 **NOTE**: For support visit https://support.cscs.ch where you can find tutorials, join the CSCS Slack for questions, and submit tickets if things are not working
 
-## [1/7] Set Up Your Access to Clariden - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/847904884/Debug+in+your+containers+with+IDEs)
+<details>
+<summary>[1/7] Set Up Your Access to Clariden</summary>
 
-Clariden is the supercomputer from CSCS that we mainly use
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/847904884/Debug+in+your+containers+with+IDEs)<br>Clariden is the supercomputer from CSCS that we mainly use
 
 1. Check your e-mail for an invite, _"Invitation to Join CSCS"_, and complete registration
 
@@ -67,11 +61,12 @@ Clariden is the supercomputer from CSCS that we mainly use
        pip install --upgrade pip setuptools
        ...
        ```
+</details>
 
+<details>
+<summary>[2/7] Persistent Storage</summary>
 
-## [2/7] Persistent Storage - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/821297419/Storage+in+Clariden)
-
-Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/821297419/Storage+in+Clariden)<br>Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
 - `/iopsstor` is smaller and intended for faster, short-term access (3PB shared across all users)<br>Your personal scratch partition is on `/iopsstor/scratch/cscs/$USER` for easy access you can add a symbolic link to your home directory
     ```bash
     ln -s /iopsstor/scratch/cscs/$USER/ $HOME/scratch
@@ -86,11 +81,12 @@ You can check your usage quota by logging into ela.cscs.ch (it currently doesn't
 ```
 ssh ela "quota"
 ```
+</details>
 
+<details>
+<summary>[3/7] SLURM Basics</summary>
 
-## [3/7] SLURM Basics - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)
-
-Clariden uses SLURM to allocate and schedule compute resources across the cluster for efficient and fair usage among users. Example SLURM commands:
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>Clariden uses SLURM to allocate and schedule compute resources across the cluster for efficient and fair usage among users. Example SLURM commands:
 
 1. `sinfo -a -l`<br>Check available partitions (queues for jobs to run) and their nodes. `-a` show all partitions, `-l` in long format
 
@@ -126,11 +122,12 @@ Clariden uses SLURM to allocate and schedule compute resources across the cluste
 6. `scontrol show job <JOBID>`<br>See more details about your job after completion
 
 7. `scontrol show nodes <NODELIST>`<br>See specific details about a node, usually nid00NNNN
+</details>
 
+<details>
+<summary>[4/7] Containers and Env Files</summary>
 
-## [4/7] Containers and Env Files - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/776306695/Container+Engine)
-
-Clariden containers run with Enroot for consistent and reproducible environments, making it possible to run Docker images without requiring elevated privileges. They are defined by `.toml` files which specify the container image to use, along with filesystem paths to mount inside it
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/776306695/Container+Engine)<br>Clariden containers run with Enroot for consistent and reproducible environments, making it possible to run Docker images without requiring elevated privileges. They are defined by `.toml` files which specify the container image to use, along with filesystem paths to mount inside it
 
 1. Create a simple `my_env.toml` file in `$HOME/.edf/` (this allows you to call the env file without the full path)
     ```bash
@@ -154,9 +151,12 @@ Clariden containers run with Enroot for consistent and reproducible environments
     **NOTE**: Only files saved in mounted paths (`my_env` example `/capstor`, `/iopsstor`, and `/users`) are persistent, changes to other paths like `/workspace` will be lost once the container session ends
 
 3. If you aren't already familiar, it is worthwhile to learn CLI text editors like [vim](https://youtu.be/uE4aljoMBeg)
+</details>
 
+<details>
+<summary>[5/7] Everyday SLURM</summary>
 
-## [5/7] Everyday SLURM - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>
 
 1. `sdebug <options>` for quick jobs max. 30min (make sure to include a shell, e.g. `bash`)<br>`squeue --me` to see your jobs<br>`ctrl+d` to exit<br>`scancel <JOBID>` to cancel a _\<JOBID\>_ or `scancel --me` to cancel all your jobs
 
@@ -198,9 +198,10 @@ Clariden containers run with Enroot for consistent and reproducible environments
     cat ~/scratch/my_first_sbatch.out
     ```
     **Remember to remove temporary files and transfer important data to `~/store` once jobs are finished, else they will be cleaned after 30 days**
+</details>
 
-
-## [6/7] TODO: VS Code Integration
+<details>
+<summary>[6/7] TODO: VS Code Integration</summary>
 
 1. Install Remote Explorer
 
@@ -217,9 +218,12 @@ Clariden containers run with Enroot for consistent and reproducible environments
     3. Enable this setting by selecting the checkbox.
 
 3. In VS Code, now click on Remote Explorer and select Clariden server (which it took from your ssh config). Once connected you should be able to navigate your home directory on the Clariden login node. If you keep having problems ensure your `ssh clariden` works as expected and manually delete `.vscode-server`on Clariden so VS Code reinstalls the VS Code server from scratch
+</details>
 
+<details>
+<summary>[7/7] (Optional) Building a Container</summary>
 
-## [7/7] (Optional) Building a Container - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/868834153/Building+container+images+on+Alps)
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/868834153/Building+container+images+on+Alps)
 
 1. Set up Nvidia GPU Cloud (NGC) access to use Nvidia Containers
 
@@ -349,3 +353,4 @@ Clariden containers run with Enroot for consistent and reproducible environments
     ```
 
 9. _TODO: Building a container ontop of group's_
+</details>

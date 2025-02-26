@@ -227,9 +227,11 @@ Clariden containers run with Enroot for consistent and reproducible environments
 
     2. Click the green button on the top right named "Generate API Key" and copy it
 
-    3. Login to Clariden `cscs-cl` and run the following commands to configure `enroot` with your `<API_KEY>`
+    3. Login to Clariden `cscs-cl` and run the following commands to configure `enroot` with your `<API_KEY>` (you will need the key again for 'ngc config set' later)
         ```bash
         NGC_API_KEY="<API_KEY>"
+        ```
+        ```bash
         mkdir -p $HOME/.config/enroot
         cat > $HOME/.config/enroot/.credentials << EOF
         machine nvcr.io login \$oauthtoken password $NGC_API_KEY
@@ -312,9 +314,11 @@ Clariden containers run with Enroot for consistent and reproducible environments
 
     Beyond installing packages, a Dockerfile can also define environment variables, set up default commands, configure network settings, expose ports, and optimize the container size using multi-stage builds. [Docker's official documentation](https://docs.docker.com/reference/dockerfile)
 
-3. We will now build the container. **DO NOT BUILD ON THE LOGIN NODE**. You may hit space or memory limits and it will make the login node less responsive for all other users. Initialize a container without an env `sdebug bash`
+4. We will now build the container. **DO NOT BUILD ON THE LOGIN NODE**. You may hit space or memory limits and it will make the login node less responsive for all other users
 
-4. Once you are on the compute node, navigate to the folder with your Dockerfile and use `podman` to create an image named `my_pytorch:25.01-py3` (be patient)
+    Initialize a container without an env `sdebug bash`
+
+    Once you are on the compute node, navigate to the folder with your Dockerfile and use `podman` to create an image named `my_pytorch:25.01-py3` (be patient)
     ```bash
     podman build -t my_pytorch:25.01-py3 .
     ```

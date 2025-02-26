@@ -25,7 +25,7 @@ Clariden is the supercomputer from CSCS that we mainly use
 
     1. Pull the setup and configuration script
         ```bash
-        curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/{cscs-cl_setup.sh,user.env} && chmod +x cscs-cl_setup.sh && ./cscs-cl_setup.sh
+        curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/{cscs-cl_setup.sh,user.env} -OO && chmod +x cscs-cl_setup.sh && ./cscs-cl_setup.sh
         ```
 
     2. Add to `user.env` your `WANDB_API_KEY`, `HF_TOKEN`, and any other env variables<br>**NOTE**: If you want to move `user.env`, make sure to run `./cscs-cl_setup.sh` again in the new directory

@@ -1,13 +1,16 @@
+
+---
 # Getting Started with SLURM and Clariden - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/840663123/Getting+started+on+Clariden)
+_TODO: VS Code Integration_
 
-Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at [https://confluence.cscs.ch/spaces/KB/overview](https://confluence.cscs.ch/spaces/KB/overview) and Clariden [https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide](https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide)
+Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at https://confluence.cscs.ch/spaces/KB/pages/272793684/CSCS+Knowledge+Base and Clariden https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide
 
-_TODO: VS Code Integration, Building a Container ontop of group's, creating group container_
 
 **NOTE**: For support visit https://support.cscs.ch where you can find tutorials, join the CSCS Slack for questions, and submit tickets if things are not working
 
+
 <details>
-<summary>[1/7] Set Up Your Access to Clariden</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[1/7] Set Up Your Access to Clariden</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/847904884/Debug+in+your+containers+with+IDEs)<br>Clariden is the supercomputer from CSCS that we mainly use
 
@@ -64,18 +67,19 @@ _TODO: VS Code Integration, Building a Container ontop of group's, creating grou
 </details>
 
 <details>
-<summary>[2/7] Persistent Storage</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[2/7] Persistent Storage</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/821297419/Storage+in+Clariden)<br>Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
 - `/iopsstor` is smaller and intended for faster, short-term access (3PB shared across all users)<br>Your personal scratch partition is on `/iopsstor/scratch/cscs/$USER` for easy access you can add a symbolic link to your home directory
     ```bash
     ln -s /iopsstor/scratch/cscs/$USER/ $HOME/scratch
     ```
-    **IMPORTANT: Files are cleaned after 30 days**, remove temporary files and transfer important data to capstor
-- `/capstor` is slower but larger and intended for long-term storage (150TB and 1M inodes(files)/user)<br>Your personal storage partition is on `/capstor/scratch/cscs/$USER`<br>**DO NOT** write to capstor from compute nodes during a job, always write to iopsstor then transfer important data after
+- `/capstor` is slower but larger and intended for large files (150TB and 1M inodes(files)/user)<br>Your personal storage partition is on `/capstor/scratch/cscs/$USER`<br>**DO NOT** write to capstor from compute nodes during a job, always write to iopsstor. capstor is not meant for quick reading and writing of many files
     ```bash
     ln -s /capstor/scratch/cscs/$USER/ $HOME/store
     ```
+
+**IMPORTANT: Files on `/iopsstor/scratch` and `/capstor/scratch` are cleaned after 30 days**, remove temporary files and transfer important data to group capstor (**NOT** personal capstor as discussed previously, will be discussed in 'Reasoning Projects Framework')
 
 You can check your usage quota by logging into ela.cscs.ch (it currently doesn't work on Clariden)
 ```
@@ -84,7 +88,7 @@ ssh ela "quota"
 </details>
 
 <details>
-<summary>[3/7] SLURM Basics</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[3/7] SLURM Basics</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>Clariden uses SLURM to allocate and schedule compute resources across the cluster for efficient and fair usage among users. Example SLURM commands:
 
@@ -125,7 +129,7 @@ ssh ela "quota"
 </details>
 
 <details>
-<summary>[4/7] Containers and Env Files</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[4/7] Containers and Env Files</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/776306695/Container+Engine)<br>Clariden containers run with Enroot for consistent and reproducible environments, making it possible to run Docker images without requiring elevated privileges. They are defined by `.toml` files which specify the container image to use, along with filesystem paths to mount inside it
 
@@ -154,7 +158,7 @@ ssh ela "quota"
 </details>
 
 <details>
-<summary>[5/7] Everyday SLURM</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[5/7] Everyday SLURM</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>
 
@@ -197,11 +201,11 @@ ssh ela "quota"
     ```bash
     cat ~/scratch/my_first_sbatch.out
     ```
-    **Remember to remove temporary files and transfer important data to `~/store` once jobs are finished, else they will be cleaned after 30 days**
+    **Remember to remove temporary files and transfer important data to `~/project` once jobs are finished (will be discussed in 'Reasoning Projects Framework'), else they will be cleaned after 30 days**
 </details>
 
 <details>
-<summary>[6/7] TODO: VS Code Integration</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[6/7] TODO: VS Code Integration</summary>
 
 1. Install Remote Explorer
 
@@ -221,7 +225,7 @@ ssh ela "quota"
 </details>
 
 <details>
-<summary>[7/7] (Optional) Building a Container</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[7/7] (Optional) Building a Container</summary>
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/868834153/Building+container+images+on+Alps)
 
@@ -351,6 +355,12 @@ ssh ela "quota"
     ```bash
     sdebug --environment=my_env bash -c "pip list"
     ```
-
-9. _TODO: Building a container ontop of group's_
 </details>
+<br>
+
+
+
+---
+# Reasoning Projects Framework
+
+_TODO: Building a Container ontop of group's, creating group container, r-gym, {OpenR1, TinyZero}_

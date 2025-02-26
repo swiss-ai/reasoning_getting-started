@@ -44,7 +44,7 @@ Clariden is the supercomputer from CSCS that we mainly use
 
 8. The preinstalled packages, like python, can be outdated and limiting. It's a good idea to work with your own miniconda environment
 
-    1. Install miniconda by running the following commands, Clariden nodes use the `aarch64` ARM64bit architecture, meaning we can't use `x86_64` as is likely what your personal machine is running (you can check on linux using `uname -m`).<br>**NOTE**: Answer _"no"_ when prompted _"Do you wish to update your shell profile to automatically initialize conda?"_
+    1. Install miniconda by running the following commands, Clariden nodes use the `aarch64` ARM64bit architecture, meaning we can't use `x86_64` as is likely what your personal machine is running (you can check on linux using `uname -m`)<br>**NOTE**: Answer _"no"_ when prompted _"Do you wish to update your shell profile to automatically initialize conda?"_
        ```bash
        cd && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh
        bash ./Miniconda3-latest-Linux-aarch64.sh
@@ -71,17 +71,18 @@ Clariden is the supercomputer from CSCS that we mainly use
 
 ## [2/7] Persistent Storage - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/821297419/Storage+in+Clariden)
 
-All files created during execution on a compute node will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
-- `/iopsstor` is smaller but faster and intended for faster short-term access (3PB shared across all users)<br>Your personal scratch partition is on `/iopsstor/scratch/cscs/$USER` for easy access you can add a symbolic link to your home directory<br>**Files are cleaned after 30 days**, remove temporary files and transfer important data to capstor
+Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
+- `/iopsstor` is smaller and intended for faster, short-term access (3PB shared across all users)<br>Your personal scratch partition is on `/iopsstor/scratch/cscs/$USER` for easy access you can add a symbolic link to your home directory
     ```bash
     ln -s /iopsstor/scratch/cscs/$USER/ $HOME/scratch
     ```
-- `/capstor` is lower but larger and intended for long-term storage (150TB and 1M inodes(files)/user)<br>Your personal storage partition is on `/capstor/scratch/cscs/$USER`<br>**DO NOT** write to capstor from compute nodes during a job, always write to iopsstor
+    **IMPORTANT: Files are cleaned after 30 days**, remove temporary files and transfer important data to capstor
+- `/capstor` is slower but larger and intended for long-term storage (150TB and 1M inodes(files)/user)<br>Your personal storage partition is on `/capstor/scratch/cscs/$USER`<br>**DO NOT** write to capstor from compute nodes during a job, always write to iopsstor then transfer important data after
     ```bash
     ln -s /capstor/scratch/cscs/$USER/ $HOME/store
     ```
 
-Your home `user` directory only has 50GB. Use it only for configuration files. You can check your usage quota by logging into ela.cscs.ch (it currently doesn't work on Clariden)
+You can check your usage quota by logging into ela.cscs.ch (it currently doesn't work on Clariden)
 ```
 ssh ela "quota"
 ```
@@ -99,7 +100,7 @@ Clariden uses SLURM to allocate and schedule compute resources across the cluste
     ```bash
     srun --account=a-a06 --time=01:00 -p debug --pty bash -c '<command>'
     ```
-    `--account` is mandatory and can be checked in [CSCS Projects](https://portal.cscs.ch/projects) (a06 for LLMs) or `id -Gn`<br>`--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (debug is usually for quick tests)<br>`--pty` starts an interactive session<br>`bash -c` will run the subsequent command with bash
+    `--account` is mandatory and can be checked in [CSCS Projects](https://portal.cscs.ch/projects) (a06 for LLMs) or `id -Gn`<br>`--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (`debug` is usually for quick tests, max. 30min; else `normal`, max. 24h)<br>`--pty` starts an interactive session<br>`bash -c '<command>'` will run the subsequent command with bash
 
     You can get an interactive compute node for 30min (such as to process data)
 
@@ -161,7 +162,7 @@ Clariden containers run with Enroot for consistent and reproducible environments
 
 2. For most production workloads or long-running experiments you'll submit jobs _non-interactively_ with `sbatch`. This allows the scheduler to queue up your jobs, allocate resources when they become available, and run your commands without you needing to stay logged in. Run `sbatch --help` to see all options available
 
-    **NOTE**: "normal" partition jobs are max. 24h, "debug" max. 30min, make sure to checkpoint**
+    **NOTE: 'normal' partition jobs are max. 24h, 'debug' max. 30min, make sure to checkpoint**
 
     1. Create a file named `my_first_sbatch.sh` with the following content (read every entry) (substitute _'a-a06'_ if your project is different)
     ```bash

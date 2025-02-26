@@ -1,0 +1,253 @@
+#!/bin/bash
+
+# This script sets the environment properly so that a user can access CSCS
+# login nodes via ssh. 
+
+#    Copyright (C) 2023, ETH Zuerich, Switzerland
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    AUTHORS Massimo Benini, Eduard Durech
+
+# Function to check if keys are valid by attempting a test connection
+function check_keys() {
+    ssh -q ela exit 2>/dev/null
+    return $?
+}
+
+# Function to setup SSH config if it doesn't exist
+function setup_ssh_config() {
+    local username="$1"
+    local ssh_config="$2"
+    # Create .ssh directory if it doesn't exist
+    mkdir -p "$HOME/.ssh"
+    touch "$ssh_config"
+
+    cat >> "$ssh_config" << EOF
+
+Host ela ela.cscs.ch
+    Hostname ela.cscs.ch
+    User ${username}
+    ForwardAgent yes
+    ForwardX11 yes
+    forwardX11Trusted yes
+    StrictHostKeyChecking accept-new
+    IdentityFile ~/.ssh/cscs-key
+
+Host clariden clariden.cscs.ch
+    Hostname clariden.cscs.ch
+    User ${username}
+    ForwardAgent yes
+    StrictHostKeyChecking accept-new
+    IdentityFile ~/.ssh/cscs-key
+    ProxyJump ela
+EOF
+}
+
+function setup_keys() {
+    local ssh_config="$HOME/.ssh/config"
+    local is_first_time=0
+    local secure_mode=$1
+
+    #Params
+    MFA_KEYS_URL="https://sshservice.cscs.ch/api/v1/auth/ssh-keys/signed-key"
+
+    #Detect OS
+    OS="$(uname)"
+    case "${OS}" in
+      'Linux')
+        OS='Linux'
+        ;;
+      'FreeBSD')
+        OS='FreeBSD'
+        ;;
+      'WindowsNT')
+        OS='Windows'
+        ;;
+      'Darwin')
+        OS='Mac'
+        ;;
+      *) ;;
+    esac
+
+    #OS validation
+    if [ "${OS}" != "Mac" ] && [ "${OS}" != "Linux" ]; then
+      echo "This script works only on Mac-OS or Linux. Aborting."
+      exit 1
+    fi
+
+    # Check if config exists and has clariden entry
+    if grep -q "Host clariden" "$ssh_config" 2>/dev/null; then
+        USERNAME=$(grep -A2 "Host clariden" "$ssh_config" | grep "User" | awk '{print $2}')
+        if [ -n "$USERNAME" ]; then
+            echo "Existing username : $USERNAME"
+        else
+            read -p "Username : " USERNAME
+        fi
+    else
+        is_first_time=1
+        read -p "Username : " USERNAME
+        # Setup SSH config with username
+        setup_ssh_config "${USERNAME}" "${ssh_config}"
+    fi
+    read -s -p  "Password : " PASSWORD
+    echo
+    read -s -p  "Enter OTP (6-digit code) : " OTP
+    echo
+
+    #Validate inputs
+    if ! [[ "${USERNAME}" =~ ^[[:lower:]_][[:lower:][:digit:]_-]{2,15}$ ]]; then
+        echo "Username is not valid."
+        exit 1
+    fi
+
+    if [ -z "${PASSWORD}" ]; then
+        echo "Password is empty."
+        exit 1
+    fi
+
+    if ! [[ "${OTP}" =~ ^[[:digit:]]{6} ]]; then
+        echo "OTP is not valid, OTP must contains only six digits."
+        exit 1
+    fi
+
+    echo "  Authenticating to the SSH key service..."
+
+    HEADERS=(-H "Content-Type: application/json" -H "accept: application/json")
+    KEYS=$(curl -s -S --ssl-reqd \
+        "${HEADERS[@]}" \
+        -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\", \"otp\": \"$OTP\"}" \
+        "$MFA_KEYS_URL")
+
+    if [ $? != 0 ]; then
+        exit 1
+    fi
+
+    echo "  Retrieving the SSH keys..."
+
+    DICT_KEY=$(echo ${KEYS} | cut -d \" -f 2)
+    if [ "${DICT_KEY}" == "payload" ]; then
+       MESSAGE=$(echo ${KEYS} | cut -d \" -f 6)
+       ! [ -z "${MESSAGE}" ] && echo "${MESSAGE}"
+       echo "Error fetching the SSH keys. Aborting."
+       exit 1
+    fi
+
+    PUBLIC=$(echo ${KEYS} | cut -d \" -f 4)
+    PRIVATE=$(echo ${KEYS} | cut -d \" -f 8)
+
+    #Check if keys are empty:
+    if [ -z "${PUBLIC}" ] || [ -z "${PRIVATE}" ]; then
+        echo "Error fetching the SSH keys. Aborting."
+        exit 1
+    fi
+
+    echo "  Setting up the SSH keys into your home folder..."
+
+    #Check ~/.ssh folder and store the keys
+    echo ${PUBLIC} | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/cscs-key-cert.pub || exit 1
+    echo ${PRIVATE} | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/cscs-key || exit 1
+
+    #Setting permissions:
+    chmod 644 ~/.ssh/cscs-key-cert.pub || exit 1
+    chmod 600 ~/.ssh/cscs-key || exit 1
+
+    #Format the keys:
+    if [ "${OS}" = "Mac" ]
+    then
+      sed -i '' -e '$ d' ~/.ssh/cscs-key-cert.pub || exit 1
+      sed -i '' -e '$ d' ~/.ssh/cscs-key || exit 1
+    else [ "${OS}" = "Linux" ]
+      sed '$d' ~/.ssh/cscs-key-cert.pub || exit 1
+      sed '$d' ~/.ssh/cscs-key || exit 1
+    fi
+
+    echo "  Completed."
+
+    # Only prompt for passphrase if in secure mode
+    if (( secure_mode )); then
+        exit_code_passphrase=1
+		while [ $exit_code_passphrase != 0 ]; do
+			ssh-keygen -f ~/.ssh/cscs-key -p
+			exit_code_passphrase=$?
+		done
+    fi
+
+    # Add key to ssh-agent
+    ssh-add -t 1d ~/.ssh/cscs-key
+
+    # Show appropriate completion message
+    if (( is_first_time )); then
+        cat << EOF
+First time setup complete! You can now connect to Clariden.
+
+Note: Keys expire after 24 hours. Just run this script again to refresh and connect.
+EOF
+    else
+        echo "Keys have been refreshed. You can now connect to Clariden."
+    fi
+}
+
+# Function to read user.env and build ENV_VARS string
+function build_env_vars() {
+    local env_vars=""
+    #setup script will set user_env path
+    local user_env=""
+
+    if [ -f "$user_env" ]; then
+        # Read file and ensure processing of last line even without newline
+        while IFS='=' read -r key value || [ -n "$key" ]; do
+            # Skip empty or commented lines
+            [[ -z "$key" || "$key" =~ ^# ]] && continue
+            # Trim whitespace and quotes from value
+            value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+            # Only add non-empty values
+            if [ ! -z "$value" ]; then
+                [ -z "$env_vars" ] && env_vars="export " || env_vars+=" "
+                env_vars+="${key}=${value}"
+            fi
+        done < "$user_env"
+    fi
+    echo "$env_vars"
+}
+
+# Main logic - single entry point that handles all cases
+if [[ "$1" == "--help" ]]; then
+    cat << EOF
+Usage: $(basename "$0") [--secure] [command]  # Setup keys and connect to Clariden
+       --secure   Prompt to add a passphrase to the SSH keygen
+       command    Optional command to execute on Clariden (if not provided, starts an interactive shell)
+EOF
+    exit 0
+fi
+
+# Parse args
+secure_mode=0
+if [[ "$1" == "--secure" ]]; then
+    secure_mode=1
+    shift  # Remove --secure from args
+fi
+
+# Check if keys are valid
+if ! check_keys; then
+    # If keys are invalid, setup/refresh them
+    setup_keys $secure_mode
+fi
+
+ENV_VARS=$(build_env_vars)
+
+# If args $@ empty, use -t (interactive shell)
+[ $# -eq 0 ] && TTY_FLAG=" -t" || TTY_FLAG=""
+
+# If args $@ empty, default to interactive "exec \$SHELL -l"
+ssh$TTY_FLAG clariden "${ENV_VARS:+$ENV_VARS; }${@:-exec \$SHELL -l}"

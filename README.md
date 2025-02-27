@@ -361,6 +361,59 @@ ssh ela "quota"
 
 
 ---
-# Reasoning Projects Framework
+# Reasoning Projects Framework - Prototype
+_TODO: Building a Container ontop of group's, creating group container, r-gym, {OpenR1, TinyZero}, Reasoning Resources_
 
-_TODO: Building a Container ontop of group's, creating group container, r-gym, {OpenR1, TinyZero}_
+Now that you know the basics of Clariden, you can set up the cluster for Reasoning Projects
+
+
+<details>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[1/n] Set Up Shared Storage</summary>
+
+- `/users/$USER` - For personal configuration files, use your home directory (`$HOME`, `~`) (50GB)
+- `/iopsstor/scratch/cscs/$USER` - For compute jobs, use your personal scratch (`$SCRATCH`) (30d cleanup)
+- `/capstor/scratch/cscs/$USER` - For large files, transfer to your personal storage **after** compute finished (30d cleanup)
+
+For persistent storage for the most important files and group data, use `/capstor/store/cscs/swissai/a06/reasoning` (if you don't have access, message your supervisor)<br>**DO NOT write to this during compute**, it costs $$$
+
+Currently, the structure is
+```bash
+/capstor/store/cscs/swissai/a06/reasoning
+├── data/       # shared project data
+├── imgs/       # project containers
+├── models/     # shared models
+└── users/      # individual user folders
+```
+1. First, create a symbolic link to the project folder
+    ```bash
+    ln -s /capstor/store/cscs/swissai/a06/reasoning $HOME/shared
+    ```
+
+2. Create your user folder
+    ```bash
+    mkdir -p /capstor/store/cscs/swissai/a06/reasoning/users/$USER
+    ```
+
+3. Create a symbolic link to your user folder
+    ```bash
+    ln -s /capstor/store/cscs/swissai/a06/reasoning/users/$USER $HOME/project
+    ```
+
+Now, when you have data you need persistent, you can use
+- `~/project` - For personal persistent data (important source code, results, et cetera)
+- `~/shared/*` - For shared persistent data (data, models, et cetera)
+
+**DO NOT** write to these during compute (that is what `$SCRATCH` is for), only transfer data you need saved after or e.g. source-code that cannot fit in your 50GB `$HOME`
+</details>
+
+<details>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[2/n] TODO: Group Container</summary>
+</details>
+
+<details>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[3/n] TODO: Set Up Relevant Libraries (Reasoning-Gym, OpenR1, TinyZero)</summary>
+</details>
+
+<details>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[4/n] TODO: Additional Readings and Resources</summary>
+</details>

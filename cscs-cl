@@ -201,6 +201,7 @@ EOF
 # Function to read user.env and build ENV_VARS string
 function build_env_vars() {
     local env_vars=""
+    local local_git_ssh_keypath=""
     #setup script will set user_env path
     local user_env=""
 
@@ -211,6 +212,14 @@ function build_env_vars() {
             [[ -z "$key" || "$key" =~ ^# ]] && continue
             # Trim whitespace and quotes from value
             value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+
+            # Handle the special case for LOCAL_GIT_SSH_KEYPATH
+            if [ "$key" == "LOCAL_GIT_SSH_KEYPATH" ]; then
+                # Expand any environment variables in the path
+                local_git_ssh_keypath=$(eval echo "$value")
+                continue  # Skip adding this to env_vars
+            fi
+
             # Only add non-empty values
             if [ ! -z "$value" ]; then
                 [ -z "$env_vars" ] && env_vars="export " || env_vars+=" "
@@ -218,7 +227,8 @@ function build_env_vars() {
             fi
         done < "$user_env"
     fi
-    echo "$env_vars"
+    # Return both values separated by a special delimiter that's unlikely to be in paths
+    echo "${env_vars}${local_git_ssh_keypath:+___SSH_KEY_DELIM___${local_git_ssh_keypath}}"
 }
 
 # Main logic - single entry point that handles all cases
@@ -244,10 +254,47 @@ if ! check_keys; then
     setup_keys $secure_mode
 fi
 
-ENV_VARS=$(build_env_vars)
+# Parse the result from build_env_vars to get both ENV_VARS and git_ssh_keypath
+build_env_result=$(build_env_vars)
+ENV_VARS=$(echo "$build_env_result" | awk -F '___SSH_KEY_DELIM___' '{print $1}')
+GIT_SSH_KEYPATH=$(echo "$build_env_result" | awk -F '___SSH_KEY_DELIM___' '{print $2}')
 
 # If args $@ empty, use -t (interactive shell)
 [ $# -eq 0 ] && TTY_FLAG=" -t" || TTY_FLAG=""
+
+# TODO: Support ssh-agent if non-interactive, e.g. send signal to local when non-interactive finished
+# Only setup SSH agent if interactive mode and have a Git key to add
+if [ $# -eq 0 ] && [ -n "$GIT_SSH_KEYPATH" ] && [ -f "$GIT_SSH_KEYPATH" ]; then
+    existing_agent=false
+    if [ -n "$SSH_AGENT_PID" ] && ps -p $SSH_AGENT_PID > /dev/null; then
+        echo "Existing SSH agent ($SSH_AGENT_PID)"
+        existing_agent=true
+    else
+        echo "Starting SSH agent..."
+        eval $(ssh-agent)
+    fi
+    # Check if the key is already added
+    key_added=false
+    if ssh-add -l | grep -q "$(ssh-keygen -lf "$GIT_SSH_KEYPATH" | awk '{print $2}')"; then
+        echo "Git SSH key already in agent"
+    else
+        # Add the Git SSH key
+        echo "Adding Git SSH key..."
+        ssh-add "$GIT_SSH_KEYPATH" 2>/dev/null
+        key_added=true
+    fi
+
+    # Setup trap to kill agent on exit if we started it
+    trap    'if [ $existing_agent = false ]; then
+                eval $(ssh-agent -k);
+            else
+                echo "Existing SSH agent ($SSH_AGENT_PID) kept";
+                if [ $key_added = true ]; then
+                    echo "Removing Git SSH key...";
+                    ssh-add -d "$GIT_SSH_KEYPATH" 2>/dev/null;
+                fi;
+            fi' EXIT INT TERM QUIT ABRT HUP
+fi
 
 # If args $@ empty, default to interactive "exec \$SHELL -l"
 ssh$TTY_FLAG clariden "${ENV_VARS:+$ENV_VARS; }${@:-exec \$SHELL -l}"

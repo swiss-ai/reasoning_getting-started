@@ -5,6 +5,8 @@ _TODO: VS Code Integration_
 
 Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at https://confluence.cscs.ch/spaces/KB/pages/272793684/CSCS+Knowledge+Base and Clariden https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide
 
+You should send your GitHub username to your supervisor so they can add you to the group repository
+
 
 **NOTE**: For support visit https://support.cscs.ch where you can find tutorials, join the CSCS Slack for questions, and submit tickets if things are not working
 
@@ -25,13 +27,24 @@ Instructions for using the Clariden cluster at CSCS, working with SLURM, and cre
         curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/{cscs-cl_setup.sh,user.env} -OO && chmod +x cscs-cl_setup.sh && ./cscs-cl_setup.sh
         ```
 
-    2. Add to `user.env` your `WANDB_API_KEY`, `HF_TOKEN`, and any other env variables<br>**NOTE**: If you want to move `user.env`, make sure to run `./cscs-cl_setup.sh` again in the new directory
+    2. Add to `user.env` your `WANDB_API_KEY`, `HF_TOKEN`, Git Credentials, and any other env variables
+        - `LOCAL_GIT_SSH_KEYPATH` is the path to your local private Git SSH key, e.g. `$HOME/.ssh/GitKey` (**not** .pub), if you haven't done so, generate https://www.youtube.com/watch?v=DuMcXyQkj5g then add https://github.com/settings/ssh/new you can test it works with
+            ```bash
+            ssh -T git@github.com
+            ```
+            You may need to add the key to ssh config (replacing `<key_name>` (**not** .pub))
+            ```bash
+            echo -e "\nIdentityFile $HOME/.ssh/<key_name>" >> $HOME/.ssh/config
+            ```
+        - You can find your Git email at https://github.com/settings/emails if you want a private email select _'Keep my email addresses private'_ and use the email in the format `<ID>+<username>@users.noreply.github.com`
+
+        **NOTE**: If you want to move `user.env`, make sure to run `./cscs-cl_setup.sh` again in the new directory
 
     3. To connect to Clariden simply run
         ```bash
         cscs-cl
         ```
-        **NOTE**: SSH keys are valid for 24h, after which running `cscs-cl` will automatically generate new keys
+        **NOTE**: Cluster SSH keys are valid for 24h, after which running `cscs-cl` will automatically generate new keys
 
     2. If you were able to login but suddenly get `Too many authentication failures` when logging into Clariden, you might have some deprecated keys in your ssh-agent. Try removing all ssh-agent identities (keys) and try again
        ```bash
@@ -153,6 +166,16 @@ ssh ela "quota"
     sdebug --environment=my_env bash
     ```
     **NOTE**: Only files saved in mounted paths (`my_env` example `/capstor`, `/iopsstor`, and `/users`) are persistent, changes to other paths like `/workspace` will be lost once the container session ends
+
+3. You can also change the working directory in your `~/.edf/my_env.toml` file to your `$HOME`, manually (replacing `<USERNAME>`):
+    ```bash
+    workdir = "/users/<USERNAME>"
+    ```
+    or, with `sed`:
+    ```bash
+    sed -i.bak "s|^workdir = .*|workdir = \"/users/$USER\"|" $HOME/.edf/my_env.toml && rm $HOME/.edf/my_env.toml.bak
+    ```
+    Now, when you run jobs, you will start in your `$HOME` directory and can write to `$HOME/scratch`
 
 3. If you aren't already familiar, it is worthwhile to learn CLI text editors like [vim](https://youtu.be/uE4aljoMBeg)
 </details>
@@ -359,7 +382,6 @@ ssh ela "quota"
 <br>
 
 
-
 ---
 # Reasoning Projects Framework - Prototype
 _TODO: Building a Container ontop of group's, creating group container, r-gym, {OpenR1, TinyZero}, Reasoning Resources_
@@ -411,7 +433,7 @@ Now, when you have data you need persistent, you can use
 </details>
 
 <details>
-<summary>&nbsp;&nbsp;&nbsp;&nbsp;[3/n] TODO: Set Up Relevant Libraries (Reasoning-Gym, OpenR1, TinyZero)</summary>
+<summary>&nbsp;&nbsp;&nbsp;&nbsp;[3/n] TODO: Set Up Relevant Libraries {Reasoning-Gym, OpenR1, TinyZero}</summary>
 </details>
 
 <details>

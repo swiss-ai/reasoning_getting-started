@@ -1,0 +1,55 @@
+name: Commit Digest
+
+on:
+    # Add as many schedules as you need - the workflow will always report changes since its last run
+    schedule:
+    - cron: '0 6 * * 1'  # Monday at 6 AM UTC
+    - cron: '0 6 * * 3'  # Wednesday at 6 AM UTC
+    # - cron: '30 12 * * *'  # Every day at 12:30 PM UTC
+    # - cron: '0 */4 * * *'  # Every 4 hours
+    # Allow manual triggering for testing
+    workflow_dispatch:
+        inputs:
+            lookback_days:
+                description: 'Number of days to look back (only used for manual runs)'
+                required: false
+                default: '7'
+            lock_timeframe_minutes:
+                description: 'Timeframe in minutes to consider locks and digests as recent'
+                required: false
+                default: '30'
+
+jobs:
+  post-commit-digest:
+    runs-on: ubuntu-latest
+    # Only run this job if we're on the main branch
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for all branches and tags
+
+      - name: Install dependencies
+        run: |
+          # Check if jq is already installed
+          if ! command -v jq &> /dev/null; then
+            echo "jq not found, installing..."
+            sudo apt-get update
+            sudo apt-get install -y jq
+          else
+            echo "jq is already installed: $(jq --version)"
+          fi
+
+      - name: Set execute permissions on script
+        run: chmod +x .github/workflows/commit-digest.sh
+
+      - name: Generate and post commit digest
+        id: digest
+        env:
+          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL_ID }}
+          LOCK_TIMEFRAME_MINUTES: ${{ github.event.inputs.lock_timeframe_minutes || '30' }}
+          DEFAULT_DAYS_AGO: ${{ github.event.inputs.lookback_days || '7' }}
+        shell: bash
+        run: .github/workflows/commit-digest.sh

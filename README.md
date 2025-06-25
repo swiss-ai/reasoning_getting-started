@@ -1,9 +1,9 @@
 
 ---
-# Getting Started with SLURM and Clariden - [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/840663123/Getting+started+on+Clariden)
+# Getting Started with SLURM and Clariden - [CSCS KB](https://docs.cscs.ch/clusters/clariden)
 _TODO: VS Code Integration_
 
-Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at https://confluence.cscs.ch/spaces/KB/pages/272793684/CSCS+Knowledge+Base and Clariden https://confluence.cscs.ch/spaces/KB/pages/750223402/Alps+Clariden+User+Guide
+Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at http://docs.cscs.ch and Clariden https://docs.cscs.ch/platforms/mlp
 
 You should send your GitHub username to your supervisor so they can add you to the group repository
 
@@ -82,15 +82,12 @@ You should send your GitHub username to your supervisor so they can add you to t
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[2/7] Persistent Storage</summary>
 
-[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/821297419/Storage+in+Clariden)<br>Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
+[CSCS KB](https://docs.cscs.ch/storage/filesystems)<br>Just connecting to Clariden via `cscs-cl` will give you a login node on `/users/$USER` with only 50GB of storage and should only be used for configuration files. Any files created during execution on a compute node (discussed later) will be lost once the session ends. For persistent storage, the Clariden cluster has two mounted storage partitions:
 - `/iopsstor` is smaller and intended for faster, short-term access (3PB shared across all users)<br>Your personal scratch partition is on `/iopsstor/scratch/cscs/$USER` for easy access you can add a symbolic link to your home directory
     ```bash
     ln -s /iopsstor/scratch/cscs/$USER/ $HOME/scratch
     ```
 - `/capstor` is slower but larger and intended for large files (150TB and 1M inodes(files)/user)<br>Your personal storage partition is on `/capstor/scratch/cscs/$USER`<br>**DO NOT** write to capstor from compute nodes during a job, always write to iopsstor. capstor is not meant for quick reading and writing of many files
-    ```bash
-    ln -s /capstor/scratch/cscs/$USER/ $HOME/store
-    ```
 
 **IMPORTANT: Files on `/iopsstor/scratch` and `/capstor/scratch` are cleaned after 30 days**, remove temporary files and transfer important data to group capstor (**NOT** personal capstor as discussed previously, will be discussed in 'Reasoning Projects Framework')
 
@@ -103,7 +100,7 @@ ssh ela "quota"
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[3/7] SLURM Basics</summary>
 
-[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>Clariden uses SLURM to allocate and schedule compute resources across the cluster for efficient and fair usage among users. Example SLURM commands:
+[CSCS KB](https://docs.cscs.ch/running/slurm)<br>Clariden uses SLURM to allocate and schedule compute resources across the cluster for efficient and fair usage among users. Example SLURM commands:
 
 1. `sinfo -a -l`<br>Check available partitions (queues for jobs to run) and their nodes. `-a` show all partitions, `-l` in long format
 
@@ -111,14 +108,14 @@ ssh ela "quota"
 
     For quick jobs
     ```bash
-    srun --account=a-a06 --time=01:00 -p debug --pty bash -c '<command>'
+    srun --account=a-infra01 --time=01:00 -p debug --pty bash -c '<command>'
     ```
-    `--account` is mandatory and can be checked in [CSCS Projects](https://portal.cscs.ch/projects) (a06 for LLMs) or `id -Gn`<br>`--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (`debug` is usually for quick tests, max. 30min; else `normal`, max. 24h)<br>`--pty` starts an interactive session<br>`bash -c '<command>'` will run the subsequent command with bash
+    `--account` is mandatory and can be checked in [CSCS Projects](https://portal.cscs.ch/projects) (infra01, infra01-0, infra01-1 for infra) or `id -Gn`<br>`--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (`debug` is usually for quick tests, max. 1h30min; else `normal`, max. 12h)<br>`--pty` starts an interactive session<br>`bash -c '<command>'` will run the subsequent command with bash
 
-    You can get an interactive compute node for 30min (such as to process data)
+    You can get an interactive compute node for 1h30min (such as to process data)
 
     ```bash
-    srun --account=a-a06 -p debug --pty bash
+    srun --account=a-infra01 -p debug --pty bash
     ```
     For experiments you should use `sbatch` (See [5/7])
 
@@ -134,7 +131,7 @@ ssh ela "quota"
 
 5. `scancel <JOBID>`<br>Cancel an individual _\<JOBID\>_
 
-    `scancel --me`<br>Cancel all jobs
+    `scancel --me`<br>Cancel your jobs
 
 6. `scontrol show job <JOBID>`<br>See more details about your job after completion
 
@@ -144,7 +141,7 @@ ssh ela "quota"
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[4/7] Containers and Env Files</summary>
 
-[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/776306695/Container+Engine)<br>Clariden containers run with Enroot for consistent and reproducible environments, making it possible to run Docker images without requiring elevated privileges. They are defined by `.toml` files which specify the container image to use, along with filesystem paths to mount inside it
+[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/894960480/Container+Engine)<br>Clariden containers run with Enroot for consistent and reproducible environments, making it possible to run Docker images without requiring elevated privileges. They are defined by `.toml` files which specify the container image to use, along with filesystem paths to mount inside it
 
 1. Create a simple `my_env.toml` file in `$HOME/.edf/` (this allows you to call the env file without the full path)
     ```bash
@@ -185,17 +182,17 @@ ssh ela "quota"
 
 [CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/794296411/Running+jobs)<br>
 
-1. `sdebug <options>` for quick jobs max. 30min (make sure to include a shell, e.g. `bash`)<br>`squeue --me` to see your jobs<br>`ctrl+d` to exit<br>`scancel <JOBID>` to cancel a _\<JOBID\>_ or `scancel --me` to cancel all your jobs
+1. `sdebug <options>` for quick jobs max. 1h30min (make sure to include a shell, e.g. `bash`)<br>`squeue --me` to see your jobs<br>`ctrl+d` to exit<br>`scancel <JOBID>` to cancel a _\<JOBID\>_ or `scancel --me` to cancel all your jobs
 
 2. For most production workloads or long-running experiments you'll submit jobs _non-interactively_ with `sbatch`. This allows the scheduler to queue up your jobs, allocate resources when they become available, and run your commands without you needing to stay logged in. Run `sbatch --help` to see all options available
 
-    **NOTE: 'normal' partition jobs are max. 24h, 'debug' max. 30min, make sure to checkpoint**
+    **NOTE: 'normal' partition jobs are max. 12h, 'debug' max. 1h30min, make sure to checkpoint**
 
-    1. Create a file named `my_first_sbatch.sh` with the following content (read every entry) (substitute _'a-a06'_ if your project is different)
+    1. Create a file named `my_first_sbatch.sh` with the following content (read every entry) (substitute _'a-infra01'_ if your project is different)
     ```bash
     #!/bin/bash
     #SBATCH --job-name=my_first_sbatch   # A name for your job. Visible in squeue.
-    #SBATCH --account=a-a06              # The account you are charged for the job
+    #SBATCH --account=a-infra01          # The account you are charged for the job
     #SBATCH --nodes=1                    # Number of compute nodes to request.
     #SBATCH --ntasks-per-node=1          # Tasks (processes) per node
     #SBATCH --time=00:10:00              # HH:MM:SS, set a time limit for this job (here 10min)
@@ -230,6 +227,7 @@ ssh ela "quota"
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[6/7] TODO: VS Code Integration</summary>
 
+https://docs.cscs.ch/access/vscode
 1. Install Remote Explorer
 
     1. File > Preferences > Extensions
@@ -250,7 +248,7 @@ ssh ela "quota"
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[7/7] (Optional) Building a Container</summary>
 
-[CSCS KB](https://confluence.cscs.ch/spaces/KB/pages/868834153/Building+container+images+on+Alps)
+[CSCS KB](https://docs.cscs.ch/build-install/containers)
 
 1. Set up Nvidia GPU Cloud (NGC) access to use Nvidia Containers
 
@@ -341,7 +339,7 @@ ssh ela "quota"
     # Create a work directory
     RUN mkdir -p /workspace
     ```
-    The Dockerfile defines steps to build a container image. In this example, we build on top of NVIDIA's PyTorch container 'nvcr.io/nvidia/pytorch:25.01-py3' which comes pre-configured with GPU acceleration and optimized libraries for deep learning. The Dockerfile then installs system dependencies ('python3-pip', 'python3-venv') and a collection of Python libraries for machine learning, data processing, and visualization
+    The Dockerfile defines steps to build a container image. In this example, we build on top of NVIDIA's PyTorch container `nvcr.io/nvidia/pytorch:25.01-py3` which comes pre-configured with GPU acceleration and optimized libraries for deep learning. The Dockerfile then installs system dependencies ('python3-pip', 'python3-venv') and a collection of Python libraries for machine learning, data processing, and visualization
 
     Beyond installing packages, a Dockerfile can also define environment variables, set up default commands, configure network settings, expose ports, and optimize the container size using multi-stage builds. [Docker's official documentation](https://docs.docker.com/reference/dockerfile)
 

@@ -394,11 +394,11 @@ Now that you know the basics of Clariden, you can set up the cluster for Reasoni
 - `/iopsstor/scratch/cscs/$USER` - For compute jobs, use your personal scratch (`$SCRATCH`) (30d cleanup)
 - `/capstor/scratch/cscs/$USER` - For large files, transfer to your personal storage **after** compute finished (30d cleanup)
 
-For persistent storage for the most important files and group data, use `/capstor/store/cscs/swissai/a06/reasoning` (if you don't have access, message your supervisor)<br>**DO NOT write to this during compute**, it costs $$$
+For persistent storage for the most important files and group data, use `/capstor/store/cscs/swissai/infra01/reasoning` (if you don't have access, message your supervisor)<br>**DO NOT write to this during compute**, it costs $$$
 
 Currently, the structure is
 ```bash
-/capstor/store/cscs/swissai/a06/reasoning
+/capstor/store/cscs/swissai/infra01/reasoning
 ├── data/       # shared project data
 ├── imgs/       # project containers
 ├── models/     # shared models
@@ -406,17 +406,17 @@ Currently, the structure is
 ```
 1. First, create a symbolic link to the project folder
     ```bash
-    ln -s /capstor/store/cscs/swissai/a06/reasoning $HOME/shared
+    ln -s /capstor/store/cscs/swissai/infra01/reasoning $HOME/shared
     ```
 
 2. Create your user folder
     ```bash
-    mkdir -p /capstor/store/cscs/swissai/a06/reasoning/users/$USER
+    mkdir -p /capstor/store/cscs/swissai/infra01/reasoning/users/$USER
     ```
 
 3. Create a symbolic link to your user folder
     ```bash
-    ln -s /capstor/store/cscs/swissai/a06/reasoning/users/$USER $HOME/project
+    ln -s /capstor/store/cscs/swissai/infra01/reasoning/users/$USER $HOME/project
     ```
 
 Now, when you have data you need persistent, you can use

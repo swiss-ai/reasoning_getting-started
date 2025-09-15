@@ -88,7 +88,7 @@ function setup_keys() {
 
     # Check if config exists and has clariden entry
     if grep -q "Host clariden" "$ssh_config" 2>/dev/null; then
-        USERNAME=$(grep -A2 "Host clariden" "$ssh_config" | grep "User" | awk '{print $2}')
+        USERNAME=$(grep -A2 "Host clariden" "$ssh_config" | grep -m1 "User" | awk '{print $2}')
         if [ -n "$USERNAME" ]; then
             echo "Existing username : $USERNAME"
         else

@@ -238,7 +238,7 @@ https://docs.cscs.ch/access/vscode
 
     1. File > Preferences > Settings
 
-    2. Search for: `remote.SSH.serverListenOnSocket`
+    2. Search for: `remote.SSH.remoteServerListenOnSocket`
 
     3. Enable this setting by selecting the checkbox.
 

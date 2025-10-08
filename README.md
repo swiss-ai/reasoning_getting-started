@@ -147,7 +147,7 @@ ssh ela "quota"
     ```bash
     mkdir -p $HOME/.edf
     cat > $HOME/.edf/my_env.toml << EOF
-    image = "/capstor/store/cscs/swissai/a06/containers/nanotron_pretrain/latest/nanotron_pretrain.sqsh"
+    image = "nvcr.io#nvidia/pytorch:25.01-py3"
     mounts = ["/capstor", "/iopsstor", "/users"]
     workdir = "/workspace"
 

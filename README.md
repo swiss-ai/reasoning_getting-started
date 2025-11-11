@@ -108,14 +108,19 @@ ssh ela "quota"
 
     For quick jobs
     ```bash
-    srun --account=a-infra01 --time=01:00 -p debug --pty bash -c '<command>'
+    srun --account=infra01 --time=01:00 -p debug --pty bash -c '<command>'
     ```
-    `--account` is mandatory and can be checked in [CSCS Projects](https://portal.cscs.ch/projects) (infra01, infra01-0, infra01-1 for infra) or `id -Gn`<br>`--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (`debug` is usually for quick tests, max. 1h30min; else `normal`, max. 12h)<br>`--pty` starts an interactive session<br>`bash -c '<command>'` will run the subsequent command with bash
+    `--account` is mandatory and can be checked in:
+    - [CSCS Projects](https://portal.cscs.ch/projects) (infra01, infra01-0, infra01-1 for infra)
+    - `id -Gn`
+    - `sacctmgr show assoc user=$USER format=account`
+    
+    `--time=01:00` specifies runtime (1 minute, shorter jobs get priority)<br>`-p` specifies the partition (`debug` is usually for quick tests, max. 1h30min; else `normal`, max. 12h)<br>`--pty` starts an interactive session<br>`bash -c '<command>'` will run the subsequent command with bash
 
     You can get an interactive compute node for 1h30min (such as to process data)
 
     ```bash
-    srun --account=a-infra01 -p debug --pty bash
+    srun --account=infra01 -p debug --pty bash
     ```
     For experiments you should use `sbatch` (See [5/7])
 
@@ -188,11 +193,11 @@ ssh ela "quota"
 
     **NOTE: 'normal' partition jobs are max. 12h, 'debug' max. 1h30min, make sure to checkpoint**
 
-    1. Create a file named `my_first_sbatch.sh` with the following content (read every entry) (substitute _'a-infra01'_ if your project is different)
+    1. Create a file named `my_first_sbatch.sh` with the following content (read every entry) (substitute _'infra01'_ if your project is different)
     ```bash
     #!/bin/bash
     #SBATCH --job-name=my_first_sbatch   # A name for your job. Visible in squeue.
-    #SBATCH --account=a-infra01          # The account you are charged for the job
+    #SBATCH --account=infra01          # The account you are charged for the job
     #SBATCH --nodes=1                    # Number of compute nodes to request.
     #SBATCH --ntasks-per-node=1          # Tasks (processes) per node
     #SBATCH --time=00:10:00              # HH:MM:SS, set a time limit for this job (here 10min)

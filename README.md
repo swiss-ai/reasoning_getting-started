@@ -52,7 +52,7 @@ You should send your GitHub username to your supervisor so they can add you to t
        cscs-cl
        ```
 
-8. The preinstalled packages, like python, can be outdated and limiting. It's a good idea to work with your own miniconda environment
+4. The preinstalled packages, like python, can be outdated and limiting. It's a good idea to work with your own miniconda environment
 
     1. Install miniconda by running the following commands, Clariden nodes use the `aarch64` ARM64bit architecture, meaning we can't use `x86_64` as is likely what your personal machine is running (you can check on linux using `uname -m`)<br>**NOTE**: Answer _"no"_ when prompted _"Do you wish to update your shell profile to automatically initialize conda?"_
        ```bash
@@ -77,6 +77,11 @@ You should send your GitHub username to your supervisor so they can add you to t
        pip install --upgrade pip setuptools
        ...
        ```
+5. It is good to have a central directory for installed packages, we will use `$HOME/bin` and add it to PATH
+```bash
+mkdir -p $HOME/bin
+echo -e "\nexport PATH=\"\$PATH:$HOME/bin\"" >> $HOME/.${SHELL##*/}rc && source $HOME/.${SHELL##*/}rc
+```
 </details>
 
 <details>
@@ -232,22 +237,31 @@ ssh ela "quota"
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[6/7] TODO: VS Code Integration</summary>
 
-https://docs.cscs.ch/access/vscode
-1. Install Remote Explorer
+[CSCS KB](https://docs.cscs.ch/access/vscode)
 
-    1. File > Preferences > Extensions
+There are many methods to connecting Clariden to VS Code
+1. SSH (untested)
+    - Install `Remote Explorer` by Microsoft: `File > Preferences > Extensions`
+    - Connect to Clariden with VS Code, reload window, and enable `remote.SSH.remoteServerListenOnSocket` in `File > Preferences > Settings`
+    - In VS Code, click on `Remote Explorer` and select `Clariden`. Once connected, you should be able to navigate your home directory on the login node
+2. Tunnels
+    - Install VS Code's CLI `code` on Clariden. Afterwards, you can check the version and update with `code --version` and `code update`
+    ```bash
+    cd && wget https://jfrog.svc.cscs.ch/artifactory/uenv-sources/vscode/vscode_cli_alpine_arm64_cli.tar.gz && tar -xf vscode_cli_alpine_arm64_cli.tar.gz -C $HOME/bin
+    rm vscode_cli_alpine_arm64_cli.tar.gz
+    ```
+    - You can create a tunnel on Clariden with `code tunnel --name=$CLUSTER_NAME` then login using GitHub
+    - On VS Code, select `Remote Explorer`, `Connect to Tunnel`, and either login using GitHub or connect to `clariden`
+    - To make your life easier, you can add the following to your `${SHELL}rc`
+    ```bash
+    cat >> "$HOME/.${SHELL##*/}rc" <<'EOF'
+    scode(){ (IFS=$'\n'; set -- $(printf '%s\0' "$@"|sed -z -E 's/^-e$/--environment/; s/^-e=(.*)$/--environment=\1/'|tr '\0' '\n'); sbatch -A infra01 -p normal --container-writable --container-entrypoint-log "$@" --wrap='bash -c "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; code tunnel --name=$CLUSTER_NAME"'); }
+    EOF
+    source $HOME/.${SHELL##*/}rc
+    ```
+    - Now you can simply run `scode` to connect to Clariden, `scode -e my_env` to start with an image
 
-    2. Select Remote Explorer by Microsoft and install it
-
-2. Enable this setting to prevent disconnects (you need to connect to Clariden with VS Code at least once before this setting appears)
-
-    1. File > Preferences > Settings
-
-    2. Search for: `remote.SSH.remoteServerListenOnSocket`
-
-    3. Enable this setting by selecting the checkbox.
-
-3. In VS Code, now click on Remote Explorer and select Clariden server (which it took from your ssh config). Once connected you should be able to navigate your home directory on the Clariden login node. If you keep having problems ensure your `ssh clariden` works as expected and manually delete `.vscode-server`on Clariden so VS Code reinstalls the VS Code server from scratch
+If you have any issues, ensure `ssh clariden` works from local and delete `$HOME/.vscode-server` on Clariden (this forces VS Code to reinstall the server on host when re-connecting), also read the _CSCS KB_ tutorial hyperlinked at the top of the section
 </details>
 
 <details>
@@ -274,11 +288,10 @@ https://docs.cscs.ch/access/vscode
         unset NGC_API_KEY
         ```
 
-    4. Download and unzip ngc-cli for 'ARM64 Linux' from https://ngc.nvidia.com/setup/installers/cli and add it to your PATH
+    4. Download and unzip ngc-cli for 'ARM64 Linux' from https://ngc.nvidia.com/setup/installers/cli to `$HOME/bin` (added to PATH in [1/7])
         ```bash
-        cd && wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/ngc-apps/ngc_cli/versions/3.60.2/files/ngccli_arm64.zip -O ngccli_arm64.zip && unzip ngccli_arm64.zip
-        echo -e "\nexport PATH=\"\$PATH:$HOME/ngc-cli\"" >> $HOME/.${SHELL##*/}rc && source $HOME/.${SHELL##*/}rc
-        rm ngc-cli.md5 ngccli_arm64.zip
+        cd && wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/ngc-apps/ngc_cli/versions/3.60.2/files/ngccli_arm64.zip -O ngccli_arm64.zip && unzip ngccli_arm64.zip -d $HOME/bin
+        rm ngccli_arm64.zip bin/ngc-cli.md5
         ```
 
     5. Configure NGC by running the following command, enter your `<API_KEY>` when prompted
@@ -399,7 +412,7 @@ Now that you know the basics of Clariden, you can set up the cluster for Reasoni
 - `/iopsstor/scratch/cscs/$USER` - For compute jobs, use your personal scratch (`$SCRATCH`) (30d cleanup)
 - `/capstor/scratch/cscs/$USER` - For large files, transfer to your personal storage **after** compute finished (30d cleanup)
 
-For persistent storage for the most important files and group data, use `/capstor/store/cscs/swissai/infra01/reasoning` (if you don't have access, message your supervisor)<br>**DO NOT write to this during compute**, it costs $$$
+For persistent storage for the most important files and group data, use `/capstor/store/cscs/swissai/infra01/reasoning` (if you don't have access, message your supervisor your `$USER`)<br>**DO NOT write to this during compute**, it costs $$$
 
 Currently, the structure is
 ```bash

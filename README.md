@@ -3,14 +3,21 @@
 # Getting Started with SLURM and Clariden - [CSCS KB](https://docs.cscs.ch/clusters/clariden)
 _TODO: VS Code Integration_
 
-Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment. Tutorials at http://docs.cscs.ch and Clariden https://docs.cscs.ch/platforms/mlp
+Instructions for using the Clariden cluster at CSCS, working with SLURM, and creating and running containers in this environment.
 
 You should send your GitHub username to your supervisor so they can add you to the group repository
 
+**IMPORTANT**: If you are having problems with the cluster, before messaging your supervisor, try debugging. Usually your supervisor has 10+ students and many responsibilities, only come to them when none of the following have worked:
+- Check [#cscs-users](https://swissai-initiative.slack.com/archives/C063R5THH99) in the Swiss AI Initiative Slack if anyone else has had a similar issue - if not, consider posting there
+- Check [#announcements-alps](https://swissai-initiative.slack.com/archives/C08HDKTFB08) in the Swiss AI Initiative Slack
+- Check the status page and familiarize yourself with CSCS's maintenance schedule and announcements https://status.cscs.ch
+- Check the documentation and tutorials at http://docs.cscs.ch and Clariden https://docs.cscs.ch/platforms/mlp
+- For support visit https://support.cscs.ch where you can find tutorials, join the CSCS Slack for questions, and **SUBMIT TICKETS** if things are not working
 
-**NOTE**: For support visit https://support.cscs.ch where you can find tutorials, join the CSCS Slack for questions, and submit tickets if things are not working
+Please do not come to your supervisor with questions about Slurm, SSH, et cetera unless you truly have tried finding information in the resources, online, and have submitted a ticket. From experience, >90% of issues from students are found in these resources or in search, and ~10% are cluster-related issues which your supervisor cannot fix. If it is project-related questions this is of course a different story
 
 
+---
 <details>
 <summary>&nbsp;&nbsp;&nbsp;&nbsp;[1/7] Set Up Your Access to Clariden</summary>
 

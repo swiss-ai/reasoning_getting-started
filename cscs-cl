@@ -21,7 +21,7 @@
 
 # Function to check if keys are valid by attempting a test connection
 function check_keys() {
-    ssh -q ela exit 2>/dev/null
+    ssh -q ela.cscs.ch exit 2>/dev/null
     return $?
 }
 

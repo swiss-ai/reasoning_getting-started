@@ -10,7 +10,7 @@ echo "Installing cscs-cl..."
 if [[ "$(uname)" != "Darwin" ]]; then
     curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/cscs-cl | sudo install /dev/stdin /usr/local/bin/cscs-cl
 else
-    curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/cscs-cl -o /usr/local/bin/cscs-cl && sudo chmod +x /usr/local/bin/cscs-cl
+    sudo curl -sL https://raw.githubusercontent.com/swiss-ai/reasoning_getting-started/main/cscs-cl -o /usr/local/bin/cscs-cl && sudo chmod +x /usr/local/bin/cscs-cl
 fi
 
 # Update the user.env path in cscs-cl

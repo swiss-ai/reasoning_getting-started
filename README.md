@@ -136,9 +136,9 @@ ssh ela "quota"
     ```
     For experiments you should use `sbatch` (See [5/7])
 
-3. To replace `srun --account=a-$(id -Gn) -p debug --pty` with a shorthand `sdebug` command run (``--container-writable`` allows you to write if in a container, discussed in [4/7])
+3. To replace `srun --account=$(id -Gn) -p debug --pty` with a shorthand `sdebug` command run (``--container-writable`` allows you to write if in a container, discussed in [4/7])
     ```bash
-    echo -e "\nalias sdebug='srun --account=a-\$(id -Gn) -p debug --pty --container-writable \"\$@\"'" >> $HOME/.${SHELL##*/}rc && source $HOME/.${SHELL##*/}rc
+    echo -e "\nalias sdebug='srun --account=\$(id -Gn) -p debug --pty --container-writable \"\$@\"'" >> $HOME/.${SHELL##*/}rc && source $HOME/.${SHELL##*/}rc
     ```
     Now you can simply run
 

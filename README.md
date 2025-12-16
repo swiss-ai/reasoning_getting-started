@@ -303,7 +303,7 @@ If you have any issues, ensure `ssh clariden` works from local and delete `$HOME
 
     5. Configure NGC by running the following command, enter your `<API_KEY>` when prompted
         ```bash
-        ngc config set
+        $HOME/bin/ngc-cli/ngc config set
         ```
 
     6. Replace the image in your `~/.edf/my_env.toml` file with a 'LINUX / ARM64' image that contains everything to run pytorch on GPUs https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/tags

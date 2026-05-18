@@ -21,8 +21,22 @@
 
 # Function to check if keys are valid by attempting a test connection
 function check_keys() {
-    ssh -q ela.cscs.ch exit 2>/dev/null
-    return $?
+    [ -f "$HOME/.ssh/cscs-key" ] &&
+    [ -f "$HOME/.ssh/cscs-key.pub" ] &&
+    [ -f "$HOME/.ssh/cscs-key-cert.pub" ] &&
+    find "$HOME/.ssh/cscs-key-cert.pub" -mtime -1 -print -quit | grep -q .
+}
+
+# Extract a string or number field from a small flat JSON response.
+function json_get() {
+    local value=""
+    value=$(printf '%s' "$2" | tr -d '\n' | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p")
+    if [ -n "$value" ]; then
+        value=$(printf '%s' "$value" | sed 's#\\/#/#g; s/\\"/"/g')
+        printf '%b' "$value"
+    else
+        printf '%s' "$2" | tr -d '\n' | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p"
+    fi
 }
 
 # Function to setup SSH config if it doesn't exist
@@ -43,13 +57,15 @@ Host ela ela.cscs.ch
     forwardX11Trusted yes
     StrictHostKeyChecking accept-new
     IdentityFile ~/.ssh/cscs-key
+    IdentitiesOnly yes
 
-Host clariden clariden.cscs.ch
-    Hostname clariden.cscs.ch
+Host clariden clariden.alps.cscs.ch
+    Hostname clariden.alps.cscs.ch
     User ${username}
     ForwardAgent yes
     StrictHostKeyChecking accept-new
     IdentityFile ~/.ssh/cscs-key
+    IdentitiesOnly yes
     ProxyJump ela
 EOF
 }
@@ -58,9 +74,13 @@ function setup_keys() {
     local ssh_config="$HOME/.ssh/config"
     local is_first_time=0
     local secure_mode=$1
-
-    #Params
-    MFA_KEYS_URL="https://sshservice.cscs.ch/api/v1/auth/ssh-keys/signed-key"
+    local key_path="$HOME/.ssh/cscs-key"
+    local pub_key_path="${key_path}.pub"
+    local cert_key_path="${key_path}-cert.pub"
+    local token_cache="$HOME/.cache/cscs-cl/token"
+    local response auth_url device_code user_code refresh_token expires_at now
+    local token_response access_token auth_error sign_response
+    local interval=5
 
     #Detect OS
     OS="$(uname)"
@@ -100,10 +120,6 @@ function setup_keys() {
         # Setup SSH config with username
         setup_ssh_config "${USERNAME}" "${ssh_config}"
     fi
-    read -s -p  "Password : " PASSWORD
-    echo
-    read -s -p  "Enter OTP (6-digit code) : " OTP
-    echo
 
     #Validate inputs
     if ! [[ "${USERNAME}" =~ ^[[:lower:]_][[:lower:][:digit:]_-]{2,15}$ ]]; then
@@ -111,80 +127,130 @@ function setup_keys() {
         exit 1
     fi
 
-    if [ -z "${PASSWORD}" ]; then
-        echo "Password is empty."
+    if [ ! -f "$key_path" ]; then
+        echo "  Generating a local SSH key..."
+        ssh-keygen -q -t ed25519 -N '' -f "$key_path" || exit 1
+    fi
+
+    if [ ! -f "$pub_key_path" ]; then
+        echo "  Deriving the public key from the existing private key..."
+        ssh-keygen -y -f "$key_path" > "$pub_key_path" || exit 1
+        chmod 644 "$pub_key_path" || exit 1
+    fi
+
+    mkdir -p "$HOME/.cache/cscs-cl"
+    chmod 700 "$HOME/.cache/cscs-cl" 2>/dev/null
+    if [ -f "$token_cache" ]; then
+        while IFS='=' read -r key value || [ -n "$key" ]; do
+            case "$key" in
+                access_token) access_token="$value" ;;
+                refresh_token) refresh_token="$value" ;;
+                expires_at) expires_at="$value" ;;
+            esac
+        done < "$token_cache"
+    fi
+
+    now=$(date +%s)
+    if [ -n "$access_token" ] && [ -n "$expires_at" ] && [ "$expires_at" -gt $((now + 10)) ]; then
+        echo "  Using cached CSCS access token..."
+    else
+        if [ -n "$refresh_token" ]; then
+            echo "  Refreshing CSCS access token..."
+            token_response=$(curl -sS \
+                -d grant_type=refresh_token \
+                -d client_id=authx-cli \
+                --data-urlencode refresh_token="$refresh_token" \
+                "https://auth.cscs.ch/auth/realms/cscs/protocol/openid-connect/token") || token_response=""
+            access_token=$(json_get "access_token" "$token_response")
+            if [ -n "$access_token" ]; then
+                refresh_token=$(json_get "refresh_token" "$token_response")
+                expires_at=$(json_get "expires_in" "$token_response")
+                [ -n "$expires_at" ] && expires_at=$(( $(date +%s) + expires_at ))
+            fi
+        fi
+
+        if [ -z "$access_token" ] || [ -z "$expires_at" ] || [ "$expires_at" -le $((now + 10)) ]; then
+        echo "  Starting CSCS device login..."
+        response=$(curl -fsS -d client_id=authx-cli -d scope=openid "https://auth.cscs.ch/auth/realms/cscs/protocol/openid-connect/auth/device") || exit 1
+        auth_url=$(json_get "verification_uri_complete" "$response")
+        if [ -z "$auth_url" ]; then
+            auth_url=$(json_get "verification_uri" "$response")
+            user_code=$(json_get "user_code" "$response")
+        fi
+        device_code=$(json_get "device_code" "$response")
+        interval=$(json_get "interval" "$response")
+        [ -z "$interval" ] && interval=5
+
+        if [ -z "$auth_url" ] || [ -z "$device_code" ]; then
+            echo "Error starting CSCS device login. Aborting."
+            exit 1
+        fi
+
+        if command -v powershell.exe >/dev/null 2>&1; then
+            powershell.exe -NoProfile -Command "Start-Process '$auth_url'" >/dev/null 2>&1 &
+        elif command -v xdg-open >/dev/null 2>&1; then
+            xdg-open "$auth_url" >/dev/null 2>&1 &
+        elif command -v open >/dev/null 2>&1; then
+            open "$auth_url" >/dev/null 2>&1 &
+        fi
+        echo "  Opening browser for CSCS login..."
+        echo "  Open this URL to authenticate: ${auth_url}"
+        [ -n "$user_code" ] && echo "  Code: ${user_code}"
+
+        while true; do
+            token_response=$(curl -sS \
+                -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
+                -d client_id=authx-cli \
+                -d device_code="$device_code" \
+                "https://auth.cscs.ch/auth/realms/cscs/protocol/openid-connect/token") || exit 1
+
+            auth_error=$(json_get "error" "$token_response")
+            [ -z "$auth_error" ] && break
+            case "$auth_error" in
+                authorization_pending) sleep "$interval" ;;
+                slow_down) interval=$((interval + 5)); sleep "$interval" ;;
+                *) echo "$token_response" 1>&2; exit 1 ;;
+            esac
+        done
+
+        access_token=$(json_get "access_token" "$token_response")
+        [ -z "$access_token" ] && { echo "Error retrieving the access token. Aborting."; exit 1; }
+        refresh_token=$(json_get "refresh_token" "$token_response")
+        expires_at=$(json_get "expires_in" "$token_response")
+        [ -n "$expires_at" ] && expires_at=$(( $(date +%s) + expires_at ))
+        fi
+    fi
+
+    if [ -n "$expires_at" ]; then
+        printf 'access_token=%s\nrefresh_token=%s\nexpires_at=%s\n' "$access_token" "$refresh_token" "$expires_at" > "$token_cache"
+        chmod 600 "$token_cache" 2>/dev/null
+    fi
+
+    echo "  Signing the SSH public key..."
+    sign_response=$(curl -fsS \
+        -H "Authorization: Bearer ${access_token}" \
+        -H "Content-Type: application/json" \
+        -d "{\"publicKey\":\"$(tr -d '\n' < "$pub_key_path" | sed 's/\\/\\\\/g; s/"/\\"/g')\",\"duration\":\"1d\"}" \
+        "https://authx-gateway.svc.cscs.ch/api-ssh-service/api/v1/ssh-keys/sign") || {
+        echo "Error fetching the SSH certificate. Aborting."
         exit 1
-    fi
+    }
 
-    if ! [[ "${OTP}" =~ ^[[:digit:]]{6} ]]; then
-        echo "OTP is not valid, OTP must contains only six digits."
-        exit 1
-    fi
+    printf '%s\n' "$(json_get "publicKey" "$sign_response")" > "$cert_key_path"
+    [ -s "$cert_key_path" ] || { echo "Error fetching the SSH certificate. Aborting."; rm -f "$cert_key_path"; exit 1; }
 
-    echo "  Authenticating to the SSH key service..."
-
-    HEADERS=(-H "Content-Type: application/json" -H "accept: application/json")
-    KEYS=$(curl -s -S --ssl-reqd \
-        "${HEADERS[@]}" \
-        -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\", \"otp\": \"$OTP\"}" \
-        "$MFA_KEYS_URL")
-
-    if [ $? != 0 ]; then
-        exit 1
-    fi
-
-    echo "  Retrieving the SSH keys..."
-
-    DICT_KEY=$(echo ${KEYS} | cut -d \" -f 2)
-    if [ "${DICT_KEY}" == "payload" ]; then
-       MESSAGE=$(echo ${KEYS} | cut -d \" -f 6)
-       ! [ -z "${MESSAGE}" ] && echo "${MESSAGE}"
-       echo "Error fetching the SSH keys. Aborting."
-       exit 1
-    fi
-
-    PUBLIC=$(echo ${KEYS} | cut -d \" -f 4)
-    PRIVATE=$(echo ${KEYS} | cut -d \" -f 8)
-
-    #Check if keys are empty:
-    if [ -z "${PUBLIC}" ] || [ -z "${PRIVATE}" ]; then
-        echo "Error fetching the SSH keys. Aborting."
-        exit 1
-    fi
-
-    echo "  Setting up the SSH keys into your home folder..."
-
-    #Check ~/.ssh folder and store the keys
-    echo ${PUBLIC} | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/cscs-key-cert.pub || exit 1
-    echo ${PRIVATE} | awk '{gsub(/\\n/,"\n")}1' > ~/.ssh/cscs-key || exit 1
-
-    #Setting permissions:
-    chmod 644 ~/.ssh/cscs-key-cert.pub || exit 1
-    chmod 600 ~/.ssh/cscs-key || exit 1
-
-    #Format the keys:
-    if [ "${OS}" = "Mac" ]
-    then
-      sed -i '' -e '$ d' ~/.ssh/cscs-key-cert.pub || exit 1
-      sed -i '' -e '$ d' ~/.ssh/cscs-key || exit 1
-    else [ "${OS}" = "Linux" ]
-      sed '$d' ~/.ssh/cscs-key-cert.pub || exit 1
-      sed '$d' ~/.ssh/cscs-key || exit 1
-    fi
-
+    chmod 644 "$cert_key_path" || exit 1
+    chmod 600 "$key_path" || exit 1
     echo "  Completed."
 
     # Only prompt for passphrase if in secure mode
     if (( secure_mode )); then
         exit_code_passphrase=1
 		while [ $exit_code_passphrase != 0 ]; do
-			ssh-keygen -f ~/.ssh/cscs-key -p
+			ssh-keygen -f "$key_path" -p
 			exit_code_passphrase=$?
 		done
     fi
-
-    # Add key to ssh-agent
-    ssh-add -t 1d ~/.ssh/cscs-key
 
     # Show appropriate completion message
     if (( is_first_time )); then
@@ -266,7 +332,8 @@ GIT_SSH_KEYPATH=$(echo "$build_env_result" | awk -F '___SSH_KEY_DELIM___' '{prin
 # Only setup SSH agent if interactive mode and have a Git key to add
 if [ $# -eq 0 ] && [ -n "$GIT_SSH_KEYPATH" ] && [ -f "$GIT_SSH_KEYPATH" ]; then
     existing_agent=false
-    if [ -n "$SSH_AGENT_PID" ] && ps -p $SSH_AGENT_PID > /dev/null; then
+    ssh-add -l >/dev/null 2>&1
+    if [ $? -ne 2 ]; then
         echo "Existing SSH agent ($SSH_AGENT_PID)"
         existing_agent=true
     else
@@ -275,7 +342,7 @@ if [ $# -eq 0 ] && [ -n "$GIT_SSH_KEYPATH" ] && [ -f "$GIT_SSH_KEYPATH" ]; then
     fi
     # Check if the key is already added
     key_added=false
-    if ssh-add -l | grep -q "$(ssh-keygen -lf "$GIT_SSH_KEYPATH" | awk '{print $2}')"; then
+    if ssh-add -l 2>/dev/null | grep -q "$(ssh-keygen -lf "$GIT_SSH_KEYPATH" | awk '{print $2}')"; then
         echo "Git SSH key already in agent"
     else
         # Add the Git SSH key
